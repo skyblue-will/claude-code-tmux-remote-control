@@ -1,15 +1,24 @@
 # Driving Claude Code remotely with tmux
 
-A small, self-contained recipe for running **Claude Code as a headless, always-on
-session** you can reach from anywhere — the browser/app, SSH, or a local terminal.
-Two pieces working together do the whole job:
+Run Claude Code as a headless session inside tmux, reachable from the Claude.ai
+web app, the desktop app, SSH, or a local terminal. Start one, walk away, pick it
+up from your phone, come back to the terminal later. It stays the same session
+throughout.
 
-- **tmux** keeps the session alive in the background, detached from any terminal.
-- **Claude Code's Remote Control** exposes that same session at a `claude.ai/code`
-  URL, so you can drive it from the web app or your phone.
+## Why
 
-Start one, walk away, pick it up from your phone, drop back to the terminal later —
-the *same* session throughout.
+A session started this way is reachable from a URL, so you can open it in a
+browser or on your phone. The agent inside it also has a shell, so it can run this
+same recipe and start more sessions. Each new one is itself remote-controlled and
+shows up at its own `claude.ai/code` link.
+
+That gives you a way to run several agents at once and drive any of them from one
+place. A first agent spins up workers for sub-tasks; you check in on each from the
+same app, approve or redirect, read what they found. Once the first session is up
+you don't need a terminal at all.
+
+The single command below starts one session. The same command, run by an agent,
+is how you grow a tree of them.
 
 ## The whole thing in one command
 
@@ -19,27 +28,27 @@ tmux send-keys -t myagent \
   'claude --remote-control "myagent" --dangerously-skip-permissions' Enter
 ```
 
-That's it: a detached tmux session named `myagent`, running Claude Code with
-Remote Control on. Everything below is just (a) the flags, plainly; (b) how to
-feed it a first prompt *safely*; and (c) how to get back in.
+A detached tmux session named `myagent`, running Claude Code with Remote Control
+on. The rest of this README covers the flags, how to hand it a first prompt
+safely, and how to get back in.
 
-## The flags that matter
+## The flags
 
 | Flag | What it does |
 |---|---|
-| `--remote-control [name]` | Turn on Remote Control and (optionally) name the session. Named → the app/URL maps to a name you chose. |
-| `--remote-control-session-name-prefix <prefix>` | Alternative: auto-generate the RC name from a prefix (Claude appends a unique suffix). Default prefix is the hostname. |
-| `--dangerously-skip-permissions` | Don't prompt for each tool call — the session runs unattended. This is what makes headless work. **Only in a trusted / sandboxed environment.** |
-| `--allow-dangerously-skip-permissions` | Softer variant: *makes* the skip available without enabling it by default. |
-| `--plugin-dir <path>` | Load a plugin (custom skills / persona / commands) from a directory or `.zip`, for this session only. Repeatable. Optional. |
+| `--remote-control [name]` | Turn on Remote Control and optionally name the session. A named session maps the app and URL to a name you chose. |
+| `--remote-control-session-name-prefix <prefix>` | Auto-generate the name from a prefix instead (Claude appends a unique suffix). The default prefix is the hostname. |
+| `--dangerously-skip-permissions` | Run tool calls without prompting, so the session works unattended. Use it only in a trusted or sandboxed environment. |
+| `--allow-dangerously-skip-permissions` | A softer form that makes the skip available without turning it on by default. |
+| `--plugin-dir <path>` | Load a plugin (custom skills, persona, commands) from a directory or `.zip` for this session. Repeatable. Optional. |
 
-**Two Remote Control forms — pick one:**
+Two ways to name the Remote Control session:
 
-- **Named** — `--remote-control "myagent"`: the RC session is exactly `myagent`.
-  Predictable; map it 1:1 to your tmux session name.
-- **Prefix** — `--remote-control-session-name-prefix myagent`: Claude generates
-  `myagent-<unique-suffix>`. Good when a script launches several at once and you
-  want no name collisions.
+- **Named**: `--remote-control "myagent"` gives the session exactly that name. Map
+  it one-to-one to your tmux session.
+- **Prefix**: `--remote-control-session-name-prefix myagent` produces
+  `myagent-<suffix>`. Useful when a script starts several at once and you want
+  unique names.
 
 ## tmux: the detached session
 
@@ -47,19 +56,19 @@ feed it a first prompt *safely*; and (c) how to get back in.
 tmux new-session -d -s <name> -c <dir>
 ```
 
-- `-d` — **detached**: start it in the background, don't attach our terminal.
-  This is what makes it a server-side, always-on session.
-- `-s <name>` — the session name (you'll attach by it).
-- `-c <dir>` — the working directory Claude starts in.
+- `-d` starts the session detached, in the background, so it keeps running with
+  nothing attached.
+- `-s <name>` sets the session name you attach by.
+- `-c <dir>` sets the directory Claude starts in.
 
-You *can* pass the command to run as a final argument to `new-session`
-(`tmux new-session -d -s n -c d "claude …"`). That works when there's no opening
-prompt, but it makes feeding a *first prompt* awkward — see the next section.
+You can pass the command as a final argument to `new-session`
+(`tmux new-session -d -s n -c d "claude ..."`). That works with no opening prompt,
+but it makes feeding a first prompt awkward. See below.
 
-## Feeding the first prompt (the bit people get wrong)
+## Feeding the first prompt
 
-To start Claude *and* hand it an opening message, the robust pattern is: start a
-**shell** in the tmux session, then **type the command into it** with `send-keys`.
+To start Claude and hand it an opening message, start a shell in the tmux session
+and type the command into it with `send-keys`:
 
 ```bash
 SEED='Audit this repo for TODOs and summarise what you find.'
@@ -68,25 +77,21 @@ tmux send-keys -t myagent \
   "claude --remote-control \"myagent\" --dangerously-skip-permissions $SEED_ESC" Enter
 ```
 
-Why `printf '%q'`? `send-keys` sends its argument to the shell as **literal
-keystrokes**, and the shell then parses that line. A seed prompt is arbitrary
-text — spaces, quotes, `$`, backticks, newlines. Without quoting:
+`send-keys` sends its argument to the shell as literal keystrokes, and the shell
+parses that line. A seed prompt is arbitrary text: spaces, quotes, `$`, backticks,
+newlines. Without quoting, spaces split it into separate arguments, and `$(...)`
+or backticks run as command substitution before Claude sees them.
 
-- spaces split it into many arguments (Claude sees only the first word);
-- `$(…)` or backticks would **execute** as command substitution before Claude
-  ever sees them.
+`printf '%q'` produces a shell-safe version of the string that parses back to the
+original as a single argument, with no splitting and no substitution. Quote the
+seed; don't drop it in raw.
 
-`printf '%q'` emits a shell-safe rendering of the string that re-parses back to
-*exactly* the original, as a single argument — no splitting, no substitution.
-It's the difference between a prompt that arrives intact and one that's mangled
-(or a shell-injection footgun). **Quote the seed; never interpolate it raw.**
-
-(No seed prompt? The simpler launch-as-argument form is fine — Claude just starts
-interactive: `tmux new-session -d -s myagent -c ~/myproject "claude --remote-control myagent --dangerously-skip-permissions"`.)
+With no seed prompt, the simpler form is fine and Claude just starts interactive:
+`tmux new-session -d -s myagent -c ~/myproject "claude --remote-control myagent --dangerously-skip-permissions"`.
 
 ## Getting back in
 
-### 1. The browser / app URL
+### Browser or app
 
 At boot, Claude prints a Remote Control link:
 
@@ -94,7 +99,7 @@ At boot, Claude prints a Remote Control link:
 https://claude.ai/code/session_XXXXXXXX
 ```
 
-Open it in the web app (or on your phone) to drive the session. To grab it from a
+Open it in the web app or on your phone to drive the session. To read it from a
 script, poll the pane until it appears:
 
 ```bash
@@ -107,53 +112,30 @@ done
 echo "$URL"
 ```
 
-`capture-pane -p` prints the pane's text; `-S -200` includes the last 200
-scrollback lines (the link may have scrolled up). Give it a few seconds — the
-link appears once Remote Control registers.
+`capture-pane -p` prints the pane text; `-S -200` includes the last 200 scrollback
+lines, in case the link scrolled off. Give it a few seconds to register.
 
-### 2. Local tmux
+### Local tmux
 
 ```bash
 tmux attach -t myagent
 ```
 
-### 3. SSH from anywhere
+### SSH
 
 ```bash
 ssh <user>@<host> -t tmux attach -t myagent
 ```
 
-`-t` forces a TTY so tmux has a real terminal to attach to. Same session, now in
-front of you; detach again with `Ctrl-b d` and it keeps running.
-
-All three routes point at the **same live session** — switch between them freely.
-
-## What this unlocks — agents that spawn agents
-
-The reason this is more than a convenience: **a remote-controlled session is
-reachable from the Claude.ai web app, the desktop app, or your phone** — not just
-a terminal. And the agent *inside* that session has a shell. Put those two facts
-together and you get composition:
-
-- An agent running in one session can run this very recipe — so **an agent can
-  spawn more agents** (or whole agent workspaces), each one itself
-  remote-controlled and independently reachable at its own `claude.ai/code` URL.
-- Because every one of them surfaces at a URL, you can **stand up and steer a
-  multi-agent setup from your phone**: a first agent orchestrates, spins up workers
-  for sub-tasks, and you drop in on any of them — approve, redirect, read what they
-  found — from the same app, anywhere. No terminal required once the first one is up.
-
-So the building block here — one headless, remote-controllable session — is also
-the *unit* of a larger architecture: sessions that launch sessions, a tree of
-agents you can grow and drive from a phone. The single command at the top is the
-atom; this is what you can build out of it.
+`-t` forces a TTY so tmux has a real terminal to attach to. Detach with `Ctrl-b d`
+and the session keeps running. All three routes reach the same live session.
 
 ## Reference script
 
-[`spawn-remote.sh`](spawn-remote.sh) is the whole recipe as one runnable script:
-it validates prereqs, refuses to clobber an existing session, starts the detached
-tmux session, feeds an optional seed prompt (quoted correctly), captures the URL,
-and prints all three attach routes.
+[`spawn-remote.sh`](spawn-remote.sh) is the recipe as one runnable script. It
+checks prereqs, refuses to clobber an existing session, starts the detached tmux
+session, feeds an optional seed prompt with the quoting above, captures the URL,
+and prints the three ways to attach.
 
 ```bash
 chmod +x spawn-remote.sh
@@ -166,16 +148,13 @@ chmod +x spawn-remote.sh
 ./spawn-remote.sh myagent ~/myproject 'Find and fix the failing test.'
 ```
 
-Because the script is just a shell command, an agent can run it too — which is
-exactly how one session grows the tree of sessions described above.
+An agent can run it too, which is how one session starts the others.
 
-## Requirements & caveats
+## Requirements and notes
 
-- **tmux** and the **`claude`** CLI on `PATH`.
-- `--dangerously-skip-permissions` lets the agent run tools without asking. That's
-  the point of unattended/headless — but only do it where you trust the
-  environment (a sandbox, your own VM). Don't point it at anything you'd mind an
-  automated agent touching.
-- A **blank `tmux capture-pane`** for a *running* Claude session is normal —
-  Claude's full-screen UI doesn't render into the captured buffer. The boot URL
-  still appears in the early scrollback, which is why we poll right after launch.
+- tmux and the `claude` CLI on `PATH`.
+- `--dangerously-skip-permissions` lets the agent run tools without asking. Only
+  use it where you trust the environment.
+- A blank `tmux capture-pane` from a running Claude session is normal; the
+  full-screen UI doesn't render into the captured buffer. The boot URL still shows
+  in the early scrollback, which is why the script polls right after launch.
