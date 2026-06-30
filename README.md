@@ -1,15 +1,18 @@
-# Driving Claude Code remotely with tmux
+# Managing multiple terminals remotely with Claude Code
 
-Run Claude Code as a headless, always-on session inside tmux, reachable from
-anywhere, including your phone: the Claude.ai web app, the desktop app, SSH, or a
-local terminal.
+Run as many Claude Code terminals as you want on a machine, and reach each one
+from anywhere, including your phone: the Claude.ai web app, the desktop app, SSH,
+or a local terminal. They keep running when you disconnect.
 
 ## Workbenches
 
-I call them workbenches: one space where you compose agents, tools, and contexts.
-That's why I use this tool. You build your own architecture on top of it.
+A workbench is just a terminal. It's the name I give them, because that's how one
+feels to use: a single space where you bring together agents, tools, and context
+to do a piece of work. That's why I use this. You build your own architecture on
+top of it.
 
-Each is one remote-controlled session, spawned on demand. The rest is how to build one.
+Each one is a remote-controlled session you spawn on demand. The rest of this is
+how to build one.
 
 ## The whole thing in one command
 
