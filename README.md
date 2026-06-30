@@ -11,8 +11,9 @@ feels to use: a single space where you bring together agents, tools, and context
 to do a piece of work. That's why I use this. You build your own architecture on
 top of it.
 
-Each one is a remote-controlled session you spawn on demand. The rest of this is
-how to build one.
+Each one is a remote-controlled session you spawn on demand, and any terminal can
+spawn more from inside itself. The only limit is RAM. The rest of this is how to
+build one.
 
 ## The whole thing in one command
 
@@ -147,6 +148,8 @@ An agent can run it too, which is how one session starts the others.
 ## Requirements and notes
 
 - tmux and the `claude` CLI on `PATH`.
+- Run it on an always-on machine, such as a cheap VPS, so the terminals stay
+  reachable any time, even when your own computer is off.
 - `--dangerously-skip-permissions` lets the agent run tools without asking. Only
   use it where you trust the environment.
 - A blank `tmux capture-pane` from a running Claude session is normal; the
