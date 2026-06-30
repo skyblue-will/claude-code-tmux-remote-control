@@ -5,20 +5,24 @@ web app, the desktop app, SSH, or a local terminal. Start one, walk away, pick i
 up from your phone, come back to the terminal later. It stays the same session
 throughout.
 
-## Why
+## Workbenches
 
-A session started this way is reachable from a URL, so you can open it in a
-browser or on your phone. The agent inside it also has a shell, so it can run this
-same recipe and start more sessions. Each new one is itself remote-controlled and
-shows up at its own `claude.ai/code` link.
+The term I use for this is a **workbench**: an agentic session with tightly scoped
+context, running inside a broader agentic system.
 
-That gives you a way to run several agents at once and drive any of them from one
-place. A first agent spins up workers for sub-tasks; you check in on each from the
-same app, approve or redirect, read what they found. Once the first session is up
-you don't need a terminal at all.
+What I want from it is the absence of friction. Starting a focused agent should
+cost a sentence, not a setup. I say "open a workbench" and one spawns: its own
+session, its own narrow slice of context for the task in front of it, with Remote
+Control on so I can reach it from a browser or my phone and pick it back up later.
+When the work is done I close it, and the next one costs the same sentence.
 
-The single command below starts one session. The same command, run by an agent,
-is how you grow a tree of them.
+That composes. An agent can run this recipe too, so a workbench can open another:
+a first one takes a job, spins up workers for the parts, and I check in on any of
+them from the same app, approve or redirect, read what they found. A system of
+scoped agents grows without anyone touching a terminal.
+
+tmux and Remote Control are what make it cheap. A workbench is one detached
+session, and "open a workbench" is just the recipe below, run on demand.
 
 ## The whole thing in one command
 
